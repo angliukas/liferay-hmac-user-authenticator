@@ -1,0 +1,1 @@
+# liferay-hmac-user-authenticator
