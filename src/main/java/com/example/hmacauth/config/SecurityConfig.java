@@ -37,7 +37,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     public HmacAuthenticationFilter hmacAuthenticationFilter(AuthenticationManager authenticationManager) {
         HmacAuthenticationFilter filter = new HmacAuthenticationFilter(customUserDetailsService());
-        filter.setAuthenticationManager(authenticationManager);
         return filter;
     }
 
