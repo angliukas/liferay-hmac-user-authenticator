@@ -28,6 +28,9 @@ public class DataConfig {
         dataSource.setPassword(getRequiredProperty("DB_PASSWORD", "db.password"));
 
         String driverClassName = getOptionalProperty("DB_DRIVER", "db.driver");
+        if (driverClassName == null) {
+            driverClassName = inferDriverClassName(dataSource.getUrl());
+        }
         if (driverClassName != null) {
             dataSource.setDriverClassName(driverClassName);
         }
@@ -74,5 +77,17 @@ public class DataConfig {
             return null;
         }
         return value;
+    }
+
+    private String inferDriverClassName(String url) {
+        if (url == null) {
+            return null;
+        }
+        String normalizedUrl = url.trim().toLowerCase();
+        if (normalizedUrl.startsWith("jdbc:sqlserver:")
+            || normalizedUrl.startsWith("jdbc:microsoft:sqlserver:")) {
+            return "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+        }
+        return null;
     }
 }
