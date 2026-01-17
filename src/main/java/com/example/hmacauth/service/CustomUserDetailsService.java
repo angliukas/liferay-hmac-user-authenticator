@@ -1,8 +1,9 @@
 package com.example.hmacauth.service;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+
+import com.example.hmacauth.model.LiferayUser;
+import com.example.hmacauth.repository.LiferayUserRepository;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,22 +12,40 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
+@Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final Map<String, UserDetails> users = new HashMap<>();
+    private final LiferayUserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public CustomUserDetailsService(PasswordEncoder passwordEncoder) {
-        GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_USER");
-        users.put("hmac-user", new User("hmac-user", passwordEncoder.encode("password"), Collections.singleton(authority)));
+    public CustomUserDetailsService(LiferayUserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UserDetails user = users.get(username);
-        if (user == null) {
-            throw new UsernameNotFoundException("User not found: " + username);
-        }
-        return user;
+        LiferayUser liferayUser = userRepository
+            .findByScreenNameOrEmailAddress(username, username)
+            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+
+        String encodedPassword = liferayUser.isPasswordEncrypted()
+            ? liferayUser.getPassword()
+            : passwordEncoder.encode(liferayUser.getPassword());
+
+        GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_USER");
+        boolean enabled = liferayUser.getStatus() == 0;
+
+        return new User(
+            liferayUser.getScreenName(),
+            encodedPassword,
+            enabled,
+            true,
+            true,
+            true,
+            Collections.singleton(authority)
+        );
     }
 }

@@ -19,14 +19,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
-    @Bean
-    public CustomUserDetailsService customUserDetailsService() {
-        return new CustomUserDetailsService(passwordEncoder());
+    private final CustomUserDetailsService userDetailsService;
+
+    public SecurityConfig(CustomUserDetailsService userDetailsService) {
+        this.userDetailsService = userDetailsService;
     }
 
     @Bean
-    public CustomAuthenticationProvider customAuthenticationProvider() {
-        return new CustomAuthenticationProvider(customUserDetailsService(), passwordEncoder());
+    public CustomAuthenticationProvider customAuthenticationProvider(PasswordEncoder passwordEncoder) {
+        return new CustomAuthenticationProvider(userDetailsService, passwordEncoder);
     }
 
     @Bean
@@ -35,14 +36,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public HmacAuthenticationFilter hmacAuthenticationFilter(AuthenticationManager authenticationManager) {
-        HmacAuthenticationFilter filter = new HmacAuthenticationFilter(customUserDetailsService());
-        return filter;
+    public HmacAuthenticationFilter hmacAuthenticationFilter() {
+        return new HmacAuthenticationFilter(userDetailsService);
     }
 
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.authenticationProvider(customAuthenticationProvider());
+        auth.authenticationProvider(customAuthenticationProvider(passwordEncoder()));
     }
 
     @Override
@@ -57,6 +57,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .loginPage("/login")
                 .permitAll();
 
-        http.addFilterBefore(hmacAuthenticationFilter(authenticationManager()), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(hmacAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+    }
+
+    @Bean
+    @Override
+    public AuthenticationManager authenticationManagerBean() throws Exception {
+        return super.authenticationManagerBean();
     }
 }
