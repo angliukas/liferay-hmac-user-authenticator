@@ -8,7 +8,7 @@ import javax.sql.DataSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.jndi.JndiObjectFactoryBean;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
@@ -21,13 +21,18 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 public class DataConfig {
 
     @Bean
-    public DataSource dataSource() throws Exception {
-        JndiObjectFactoryBean jndiFactory = new JndiObjectFactoryBean();
-        jndiFactory.setJndiName("java:comp/env/jdbc/LiferayPool");
-        jndiFactory.setResourceRef(true);
-        jndiFactory.setProxyInterface(DataSource.class);
-        jndiFactory.afterPropertiesSet();
-        return (DataSource) jndiFactory.getObject();
+    public DataSource dataSource() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setUrl(getRequiredProperty("DB_URL", "db.url"));
+        dataSource.setUsername(getRequiredProperty("DB_USERNAME", "db.username"));
+        dataSource.setPassword(getRequiredProperty("DB_PASSWORD", "db.password"));
+
+        String driverClassName = getOptionalProperty("DB_DRIVER", "db.driver");
+        if (driverClassName != null) {
+            dataSource.setDriverClassName(driverClassName);
+        }
+
+        return dataSource;
     }
 
     @Bean
@@ -48,5 +53,26 @@ public class DataConfig {
     @Bean
     public PlatformTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);
+    }
+
+    private String getRequiredProperty(String envKey, String sysKey) {
+        String value = getOptionalProperty(envKey, sysKey);
+        if (value == null) {
+            throw new IllegalStateException(
+                "Missing required database configuration for " + envKey + " or " + sysKey
+            );
+        }
+        return value;
+    }
+
+    private String getOptionalProperty(String envKey, String sysKey) {
+        String value = System.getProperty(sysKey);
+        if (value == null || value.trim().isEmpty()) {
+            value = System.getenv(envKey);
+        }
+        if (value != null && value.trim().isEmpty()) {
+            return null;
+        }
+        return value;
     }
 }
